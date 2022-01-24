@@ -122,7 +122,99 @@ public class DML_insert_01 {
 
 
 				////////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		/// 4. update를 이용하여 수정해보자.
+		/////////////////////////////////////////////////////////////////////////
+			
+			System.out.print(" ▷ 수정할 글번호 : ");
+			String no = sc.nextLine();
+			
+			
+			sql = " select name, msg"
+				+ " from jdbc_tbl_memo "
+				+ " where no = ? ";
+			
+			pstmt.close();
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString(1, no);
+			
+			rs.close();
+			rs = pstmt.executeQuery();
+			
+			if(rs.next()) {
+				
+				String name = rs.getString(1); // select 의 첫번쨰 Column 인 name
+				String msg = rs.getString(2); // select 의 두번쨰 Column 인 msg
+				
+				System.out.println("\n=== 수정하기 전 내용 ===");
+				System.out.println("\n ★ 글쓴이 : " + name);
+				System.out.println(" ★ 글내용 : " + msg);				
 
+				System.out.println("\n=== 글 수정하기 ===");
+				System.out.print(" ▷ 글쓴이 : ");
+				name = sc.nextLine();
+				System.out.print(" ▷ 글내용 : ");
+				msg = sc.nextLine();
+				
+				sql = " update jdbc_tbl_memo set name = ? "
+						+ "                        , msg = ? "
+						+ " where no = ? ";
+					
+					pstmt = conn.prepareStatement(sql);
+					pstmt.setString(1, name);
+					pstmt.setString(2, msg);
+					pstmt.setString(3, no);
+				
+				int n = pstmt.executeUpdate(); // no 는 항상 1이 나옴. Primary Key 이기 때문에.
+				String yn = "";
+				
+				do {
+					
+					if(n==1) {
+						// n==1 이라는 뜻은 update 구문이 성공했다는 말이다.
+						
+						System.out.print(" ▷ 정말로 수정하시겠습니까?[Y/N] : ");
+						yn = sc.nextLine();
+						
+						if("y".equalsIgnoreCase(yn)) {
+							conn.commit(); // 수정할거다!(커밋)
+							System.out.println(">> 데이터 수정 성공!! <<");
+							System.out.println("\n=== 수정 후 내용 ===");
+							
+							sql = " select name, msg "
+								+ " from jdbc_tbl_memo "
+								+ " where no = ? ";
+							
+							pstmt= conn.prepareStatement(sql);
+							pstmt.setString(1, no);
+							
+							rs = pstmt.executeQuery();
+							
+							rs.next();
+							
+							name = rs.getString(1);
+							msg = rs.getString(2);
+							
+							System.out.println("\n ☆ 글쓴이 : " + name);
+							System.out.println(" ☆ 글내용 : " + msg);		
+							
+						}
+						else if("n".equalsIgnoreCase(yn)) {
+							conn.rollback(); // 잠깐만..(롤백)
+							System.out.println(">> 데이터 수정 취소. <<");
+						}
+						else {
+							System.out.println(">>> Y 또는 N 만 입력하세요!! <<< \n");
+						}
+						
+					}// end of if(n==1)--------------------
+				
+				} while( !("y".equalsIgnoreCase(yn) || "n".equalsIgnoreCase(yn)) );	
+				
+			} 
+			else {
+				System.out.println(" >>> 글번호 " + no + "는 존재하지 않습니다. <<< \n");
+			}// end of if(rs.next())--------------------------------
 			
 		} catch (ClassNotFoundException e) {
 			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
