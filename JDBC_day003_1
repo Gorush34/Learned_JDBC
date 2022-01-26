@@ -211,3 +211,285 @@ public class MemberCtrl {
 	
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////// 인터페이스 InterMemberDAO를 통해 여러 메소드를 파악할 수 있다.(목차)  /////////////////////////////////
+
+package jdbc.day03;
+
+import java.util.Map;
+
+public interface InterMemberDAO {
+
+	// 회원가입(insert) 메소드
+	int memberRegister(MemberDTO member);
+	// 몇 행이 들어왔나 Return 해야하기 때문에 int type으로 받음
+	
+	// 로그인처리(select) 메소드
+	MemberDTO login(Map<String, String> paraMap);
+	// parameter가 Map인 모은 정보를 받아서 login 메소드를 통해 MemberDTO의 값을 return 해야 함.
+	
+	// 회원탈퇴(update) 메소드
+	int MemberDelete(int userseq);
+	// userseq 는 고유한 값이므로 이 parameter를 통해 메소드를 실행해서
+	// 1이면 정상적으로 실행됨( 1 행이 update 된거니까), 0이면 실행실패
+	
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// MemberDAO는 데이터베이스에 연결하여 SQL구문을 실행시켜주는 객체이다. /////////////////////////////////
+
+package jdbc.day03;
+
+import java.sql.*;
+import java.util.Map;
+
+//DAO(Database Access Object) ==> 데이터베이스에 연결하여 SQL구문을 실행시켜주는 객체
+
+public class MemberDAO implements InterMemberDAO {
+
+	// attribute, field, property, 속성
+	Connection conn = null;
+	PreparedStatement pstmt = null;
+	ResultSet rs = null;
+	
+	
+	
+	// operation, method, behavior, 기능
+	
+	// == 자원반납을 해주는 메소드 == //
+	private void close() {
+		try {
+			
+			if(rs != null) rs.close(); // 종료는 항상 역순으로(가장 나중에킨거 먼저 닫아라)
+			if(pstmt != null) pstmt.close();
+			if(conn != null) conn.close();
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	} // end of private void close() -----------------------------------
+
+
+	// 회원가입(insert) 메소드 구현하기 ===
+	@Override
+	public int memberRegister(MemberDTO member) {
+		
+		int result = 0;
+		
+		try {
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			
+			conn = DriverManager.getConnection("jdbc:oracle:thin:@127.0.0.1:1521:xe", "HR", "cclass");
+			
+			String sql = " insert into jdbc_member(userseq, userid, passwd, name, mobile) "
+					   + " values(userseq.nextval, ?, ?, ?, ?) ";
+			
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString( 1, member.getUserid() ); // MemberDTO에 있는 정보를 가져온다.
+			pstmt.setString( 2, member.getPasswd() );
+			pstmt.setString( 3, member.getName() );
+			pstmt.setString( 4, member.getMobile() );
+			
+			result = pstmt.executeUpdate();
+			
+			
+		} catch (ClassNotFoundException e) {
+			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
+		} catch (SQLIntegrityConstraintViolationException e) {
+			// System.out.println("에러코드번호 : " + e.getErrorCode());
+			// System.out.println("에러메시지 : " + e.getMessage());
+			
+			if(e.getErrorCode() == 1) {
+				System.out.println(" >> 아이디가 중복되었습니다. 새로운 아이디를 입력하세요!! <<");
+				// 여기서 에러가뜨면 result값은 초기값 0이 되고 메소드를 호출한 MemberCtrl클래스에서 초기값 0이 반환되어진다.
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			close();
+		}
+		
+		return result;
+	} // end of public int memberRegister(MemberDTO member)
+
+	
+	
+	
+	// === 로그인처리(select) 메소드 구현하기 === //
+	@Override
+	public MemberDTO login(Map<String, String> paraMap) {
+		
+		MemberDTO member = null;
+		
+		try {
+			Class.forName("oracle.jdbc.driver.OracleDriver");// 오라클 드라이버 연결
+			
+			conn = DriverManager.getConnection("jdbc:oracle:thin:@127.0.0.1:1521:xe", "HR", "cclass"); // 어디에 갈지 설정
+			
+			String sql = " select userseq, name, mobile, point, to_char(registerday, 'yyyy-mm-dd') AS registerday "+
+						 " from jdbc_member "+
+						 " where status = 1 and userid = ? and passwd = ? ";
+						 // AS에 " " 를 쓰면 \" \" 로 써야하고 SQL에서도 똑같이 써야한다.
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString( 1, paraMap.get("userid") );
+			// 위치홀더 1번째에 넣을 값을 가져오는데, 위치는 parameter의 정의된 위치가 MemberCtrl이고, paraMap의 Key값을 가져온다.
+			pstmt.setString( 2, paraMap.get("passwd") );
+			
+			rs = pstmt.executeQuery();
+			// 우편배달부가 SQL의 값을 받아오기 위해 실행한다.
+			
+			if( rs.next() ) { // 행이 값이 있다면
+				member = new MemberDTO(); // MemberDTO에서 값을 받아오기 위해 객체를 하나 생성.
+				// member.setName( rs.getString(1) ); // rs에서 받아온 select 컬럼 중 1번째 값을 받아와서 member객체 name 변수에 넣는다.
+				// 또는
+				member.setUserseq( rs.getInt("USERSEQ"));
+				member.setName( rs.getString("NAME") );
+				member.setMobile( rs.getString("MOBILE") );
+				member.setPoint( rs.getInt("POINT") );
+				member.setRegisterday( rs.getString("REGISTERDAY") );
+				// status 는 가져올 필요 없음. 조건절에서 이미 1이어야 나오기 때문에
+			}
+			
+			
+			
+		} catch (ClassNotFoundException e) {
+			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			close();
+		}
+		
+		
+		return member;
+	} // end of public MemberDTO login(Map<String, String> paraMap) ----------------------
+
+
+	
+	
+	// === 회원탈퇴(update) 메소드 구현하기 === //
+	@Override
+	public int MemberDelete(int userseq) { // userseq를 받아서 그 userseq의 status의 값을 0으로 해준다.
+		
+		int result = 0;
+		
+		try {
+			Class.forName("oracle.jdbc.driver.OracleDriver");// 오라클 드라이버 연결
+			
+			conn = DriverManager.getConnection("jdbc:oracle:thin:@127.0.0.1:1521:xe", "HR", "cclass"); // 어디에 갈지 설정
+			
+			String sql = " update jdbc_member set status = 0 "
+					   + " where userseq = ? ";
+			// jdbc_member 테이블의 userseq가 ? 번인 status column을 0으로 하겠다. 
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt( 1, userseq );
+			// ?의 첫번째는 parameter로 받은 userseq이며 타입은 int다.
+			
+			result = pstmt.executeUpdate();
+			// 업데이트를 실행하고 결과를 result에 저장한다. 1은 성공
+			
+		} catch (ClassNotFoundException e) {
+			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			close();
+		}
+		
+		return result;
+
+		
+	} // end of public int MemberDelete(int userseq)------------
+	
+	
+	
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// MemberDTO는 데이터전송(운반)의 역할을 하는 객체이다. /////////////////////////////////
+
+package jdbc.day03;
+
+//=== DTO(Data Transfer Object, 데이터전송(운반)객체 )
+//쉽게 말해서 DTO는 테이블의 1개 행(ROW)을 말한다.
+//어떤 테이블에 데이터를 insert 하고자 할때 DTO에 담아서 보낸다.
+//또한 어떤 테이블에서 데이터를 select 하고자 할때도 DTO에 담아서 읽어온다.
+// ***** Database 의 insert 는 DTO에 담김!!! select는 DTO에서 읽어옴!!!!
+
+public class MemberDTO {
+
+	// attribute, field, property, 속성
+	
+	private int userseq;			// 회원번호
+	private String userid;			// 회원아이디
+	private String passwd;			// 회원암호
+	private String name;			// 회원명
+	private String mobile;			// 연락처
+	private int point;				// 포인트
+	private String registerday;		// 가입일자
+	private int status;				// status 값이 1이면 정상, 0 이면 탈퇴
+	
+	
+	public int getUserseq() {
+		return userseq;
+	}
+	public void setUserseq(int userseq) {
+		this.userseq = userseq;
+	}
+	public String getUserid() {
+		return userid;
+	}
+	public void setUserid(String userid) {
+		this.userid = userid;
+	}
+	public String getPasswd() {
+		return passwd;
+	}
+	public void setPasswd(String passwd) {
+		this.passwd = passwd;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public String getMobile() {
+		return mobile;
+	}
+	public void setMobile(String mobile) {
+		this.mobile = mobile;
+	}
+	public int getPoint() {
+		return point;
+	}
+	public void setPoint(int point) {
+		this.point = point;
+	}
+	public String getRegisterday() {
+		return registerday;
+	}
+	public void setRegisterday(String registerday) {
+		this.registerday = registerday;
+	}
+	public int getStatus() {
+		return status;
+	}
+	public void setStatus(int status) {
+		this.status = status;
+	}
+
+	///////////////////////////////////////////////////////////////
+	
+	@Override // 오버라이딩시 부모의 접근제한자 범위보다 크거나 같아야 함.
+	public String toString() {
+		
+		return "◇ 성명 : " + name + "\n"
+			 + "◇ 휴대폰 : " + mobile + "\n"
+			 + "◇ 포인트 : " + point + "\n"
+			 + "◇ 가입일자 : " + registerday + "\n";
+	}
+	
+}
