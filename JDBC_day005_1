@@ -121,4 +121,110 @@ case "7": // 최근 1주일간 일자별 게시글 작성건수
 	} // end of public Map<String, Integer> statisticsByWeek() -----------------------------
   
   --------------------------------------------------------------------------------------------------------------------------------
+   // 저번달 및 이번달 일자별 게시글 작성건수 
+   
+   // 컨트롤러 코드
+
+	case "8": // 저번달 및 이번달 일자별 게시글 작성건수
+		statisticsByPrevious_CurrentMonth();
+		break;
+		
+	// *** 전월일 당월 일자별 게시글 작성건수 ***
+	private void statisticsByPrevious_CurrentMonth() {
+		
+		Calendar currentDate = Calendar.getInstance(); 
+		   // 현재날짜와 시간을 얻어온다.
+		
+		currentDate.add(Calendar.MONTH, -1); 
+		
+		SimpleDateFormat sdateFmt = new SimpleDateFormat("yyyy년 MM월");
+		String previous_1_month = sdateFmt.format(currentDate.getTime());
+		
+		currentDate = Calendar.getInstance(); 
+		   // 현재날짜와 시간을 얻어온다.
+		String current_month = sdateFmt.format(currentDate.getTime());
+		
+		
+		System.out.println("\n>>>> [ "+previous_1_month+" , "+current_month+" 일자별 게시글 작성건수] <<<<");
+		// System.out.println("\n---- [ 2022년 01월, 2022년 02월 일자별 게시글 작성건수] ----");
+		
+		System.out.println("----------------------------------");
+		System.out.println(" 작성일자\t작성건수");
+		System.out.println("----------------------------------");
+		
+		List<Map<String, String>> mapList = bdao.statisticsByPrevious_CurrentMonth();
+		
+		// 알맹이가 있나없나 알아보자
+		if( mapList.size() > 0 ) {
+		
+			StringBuilder sb = new StringBuilder();
+			
+			for(Map<String, String> map : mapList) {
+				sb.append( map.get("WRITEDAY") + "\t" + map.get("CNT") + "\n" );
+			} // end of for-------------------------
+			
+			System.out.println(sb.toString());
+			
+		}
+		else {
+			System.out.println(" 작성된 게시글이 없습니다.");
+		}
+		
+	} // end of statisticsByPrevious_CurrentMonth	
+  
+  
+  
+  
+    // InterBoardDAO에 정의하고 BoardDAO 에 오버라이딩 한 코드
+    
+    
+	// *** 전월일 당월 일자별 게시글 작성건수를 보여주는 메소드 생성***
+	@Override
+	public List<Map<String, String>> statisticsByPrevious_CurrentMonth() {
+		
+		List<Map<String, String>> mapList = new ArrayList<>();
+		
+		try {
+			
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			
+			conn = DriverManager.getConnection("jdbc:oracle:thin:@127.0.0.1:1521:xe", "HR", "cclass");
+			
+			String sql = " select decode( grouping( to_char(writeday, 'yyyy-mm-dd') ), 0, to_char(writeday, 'yyyy-mm-dd'), '전체' ) AS WRITEDAY "+
+						 "     , count(*)  AS CNT "+
+						 " from jdbc_board "+
+						 " where to_char(writeday, 'yyyy-mm') = to_char(sysdate, 'yyyy-mm') OR "+
+						 "      to_char(writeday, 'yyyy-mm') = to_char(add_months(sysdate,-1), 'yyyy-mm')  "+
+						 " group by ROLLUP( to_char(writeday, 'yyyy-mm-dd') ) ";
+			
+			pstmt = conn.prepareStatement(sql);
+			
+			rs = pstmt.executeQuery();
+			
+			while(rs.next()) {
+				 
+				Map<String, String> map = new HashMap<>();
+				
+				map.put("WRITEDAY", rs.getString(1));
+				map.put("CNT", String.valueOf(rs.getInt(2)));
+				
+				mapList.add(map);
+				
+			} // end of while(rs.next())----------------------
+			
+			
+			
+			
+		} catch (ClassNotFoundException e) {
+			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			close();
+		}
+		
+		
+		return mapList;
+	} // end of public List<Map<String, String>> statisticsByPrevious_CurrentMonth() ------------------------------------    
+    
   
