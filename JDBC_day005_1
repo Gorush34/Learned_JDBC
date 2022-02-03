@@ -1,10 +1,28 @@
+
+// 글삭제하는 메소드 생성
+
+
+
+// 컨트롤러 코드
+
+
+
+
+// InterBoardDAO에 정의하고 BoardDAO 에 오버라이딩 한 코드
+
+
+
+================================================================================================================================================
+
+
+
 // 최근 1주일간 일자별 게시글 작성건수 메소드 생성 및 실행
 
 // 컨트롤러 코드
 
-case "7": // 최근 1주일간 일자별 게시글 작성건수
-				statisticsByWeek();
-				break;
+	case "7": // 최근 1주일간 일자별 게시글 작성건수
+		statisticsByWeek();
+		break;
         
         
 	// **** 최근 1주일간 일자별 게시글 작성건수 ****
@@ -68,18 +86,18 @@ case "7": // 최근 1주일간 일자별 게시글 작성건수
   
   // InterBoardDAO에 정의하고 BoardDAO 에 오버라이딩 한 코드
   
-  	// 최근 1주일간 일자별 게시글 작성건수를 select 해서 나오는 결과물
+	// 최근 1주일간 일자별 게시글 작성건수를 select 해서 나오는 결과물
 	@Override
 	public Map<String, Integer> statisticsByWeek() {
-		
+
 		Map<String, Integer> resultMap = new HashMap<>(); 
-		
+
 		try {
-			
+
 			Class.forName("oracle.jdbc.driver.OracleDriver");
-			
+
 			conn = DriverManager.getConnection("jdbc:oracle:thin:@127.0.0.1:1521:xe", "HR", "cclass");
-			
+
 			String sql = " select count(*) AS TOTAL "+
 					"      , sum( decode( func_midnight(sysdate) - func_midnight(writeday), 6, 1, 0)  ) AS PREVIOUS6 "+
 					"      , sum( decode( func_midnight(sysdate) - func_midnight(writeday), 5, 1, 0)  ) AS PREVIOUS5 "+
@@ -90,13 +108,13 @@ case "7": // 최근 1주일간 일자별 게시글 작성건수
 					"      , sum( decode( func_midnight(sysdate) - func_midnight(writeday), 0, 1, 0)  ) AS TODAY "+
 					" from jdbc_board "+
 					" where ( func_midnight(sysdate) - func_midnight(writeday) ) < 7 ";
-			
+
 			pstmt = conn.prepareStatement(sql);
-			
+
 			rs = pstmt.executeQuery();
-			
+
 			rs.next();
-			
+
 			resultMap.put("TOTAL", rs.getInt(1));
 			resultMap.put("PREVIOUS6", rs.getInt(2));
 			resultMap.put("PREVIOUS5", rs.getInt(3));
@@ -105,10 +123,10 @@ case "7": // 최근 1주일간 일자별 게시글 작성건수
 			resultMap.put("PREVIOUS2", rs.getInt(6));
 			resultMap.put("PREVIOUS1", rs.getInt(7));
 			resultMap.put("TODAY", rs.getInt(8));
-			
-			
-			
-			
+
+
+
+
 		} catch (ClassNotFoundException e) {
 			System.out.println(">> ojdbc6.jar 파일이 없습니다. << ");
 		} catch (SQLException e) {
@@ -116,7 +134,7 @@ case "7": // 최근 1주일간 일자별 게시글 작성건수
 		} finally {
 			close();
 		}
-		
+
 		return resultMap;
 	} // end of public Map<String, Integer> statisticsByWeek() -----------------------------
   
